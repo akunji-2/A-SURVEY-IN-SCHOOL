@@ -1,0 +1,82 @@
+# Load Required Libraries
+library(readxl)   # For reading Excel files
+library(dplyr)    # For data manipulation
+library(ggplot2)  # For visualizations
+
+# Step 1: Import the Dataset
+# Replace 'path_to_file.xlsx' with the actual path
+file_path <- "ASURVEY IN A SCHOOL Data cleaning.xlsx"
+data <- read_excel(file_path)
+
+# View the structure of the dataset
+str(data)
+
+# Step 2: Perform Data Cleaning
+# Convert column names to lowercase for consistency
+colnames(data) <- tolower(colnames(data))
+
+# Remove unnecessary columns (if any)
+clean_data <- data %>%
+  select_if(~sum(!is.na(.)) > 0)  # Keeps columns with non-empty values
+
+# Step 3: Summary Analysis
+# Basic summary statistics for numeric columns
+summary_stats <- clean_data %>%
+  summarise(across(where(is.numeric), list(mean = mean, sd = sd, median = median, na_count = ~sum(is.na(.))), .names = "{col}_{fn}"))
+
+# Count unique values in categorical columns
+categorical_summary <- clean_data %>%
+  summarise(across(where(is.character), ~length(unique(.))))
+
+# Frequency of categorical variables
+categorical_frequencies <- clean_data %>%
+  summarise(across(where(is.character), ~table(.)))
+
+# Print summaries
+print(summary_stats)
+print(categorical_summary)
+
+# Step 4: Analysis Examples
+# 4.1 Count the number of responses per school location
+location_summary <- clean_data %>%
+  count(location_of_school, name = "count") %>%
+  mutate(percent = count / sum(count) * 100)
+
+print(location_summary)
+
+# 4.2 Gender distribution
+gender_distribution <- clean_data %>%
+  count(gender) %>%
+  mutate(percent = n / sum(n) * 100)
+
+print(gender_distribution)
+
+# Step 5: Visualizations
+# 5.1 Bar plot for location of school
+ggplot(location_summary, aes(x = location_of_school, y = count, fill = location_of_school)) +
+  geom_bar(stat = "identity") +
+  labs(title = "School Locations", x = "Location", y = "Count") +
+  theme_minimal()
+
+# 5.2 Pie chart for gender distribution
+ggplot(gender_distribution, aes(x = "", y = percent, fill = gender)) +
+  geom_bar(stat = "identity", width = 1) +
+  coord_polar(theta = "y") +
+  labs(title = "Gender Distribution", x = NULL, y = NULL) +
+  theme_void()
+
+# 5.3 Boxplot for numeric variables (example: age distribution if available)
+if ("age" %in% colnames(clean_data)) {
+  ggplot(clean_data, aes(x = "", y = age)) +
+    geom_boxplot() +
+    labs(title = "Age Distribution", x = NULL, y = "Age") +
+    theme_minimal()
+}
+
+# Save plots to files
+ggsave("location_distribution.png")
+ggsave("gender_pie_chart.png")
+
+# Step 6: Export Cleaned Data and Summaries
+write.csv(clean_data, "cleaned_data.csv")
+write.csv(summary_stats, "summary_statistics.csv")
